@@ -1,0 +1,65 @@
+---
+- name: Install SQL Server
+  hosts: db
+  become_method: runas #Privilege
+  vars:
+    sql_instance_name: BizTalks # Var
+ 
+  tasks:
+
+  - name: Install TelnetClient #Name Task
+    win_feature:               # Modulo
+     name: Telnet-client       # Name features or roles to install
+     state: present            # State features or roles
+
+    # Setup SQL Server Pre-Reqs
+  - name: Install .NET Framework 3.5
+    win_feature:
+     name: NET-Framework-Features
+     state: present
+  
+  - name: create a directory for installer download
+    win_file:
+        path: C:\IsoSQL2019
+        state: directory 
+
+#   - name: create the configuration file
+#     win_template: 
+#         src: files/ConfigurationFile.ini
+#         dest: c:\SQL2017\ConfigurationFile.ini
+
+  - name: check downloaded file exists
+    win_stat:
+        path: C:\IsoSQL2019\SQL2019-SSEI-Dev.exe
+    register: installer_file
+
+  - name: get the installer
+    win_get_url:
+        url: 'https://download.microsoft.com/download/7/c/1/7c14e92e-bdcb-4f89-b7cf-93543e7112d1/SQLServer2019-x64-ENU-Dev.iso'
+        dest: 'c:\IsoSQL2019\SQL2019-SSEI-Dev.iso'
+    when: not installer_file.stat.exists
+
+  - name:  Ensure an ISO is mounted
+    win_disk_image: 
+        image_path: 'c:\IsoSQL2019\SQL2019-SSEI-Dev.iso'
+        state: present
+    register: disk_image_out
+
+#   - name: Run Installer from mounted ISO
+#     win_package:
+#         path: 'F:setup.exe /ConfigurationFile="C:\SQL2019\ConfigurationFile.ini" /IAcceptSQLServerLicenseTerms'
+#         state: present
+
+  # F:setup.exe /ConfigurationFile="C:\SQL2019\ConfigurationFile.ini" /IAcceptSQLServerLicenseTerms
+
+  - name: Install Motor SQL Server
+    win_command: F:setup.exe /ConfigurationFile="C:\SQL2019\ConfigurationFile.ini" /IAcceptSQLServerLicenseTerms
+    args:
+      chdir: c:\SQL2019\
+    become: yes
+    become_user: ansible
+
+  - name: Unmount ISO
+    win_disk_image:  
+     image_path: 'c:\IsoSQL2019\SQL2019-SSEI-Dev.iso'
+     state: absent
