@@ -1,0 +1,73 @@
+---
+- name: Ansible copy KB - Control Node to Admin Node
+  hosts: win #all
+  vars:
+  
+   path_source: '/etc/ansible/security_kb' # Source KB
+   path_destin: 'C:\Ansible\'              # save kb
+   
+   hotfix_2019: 'kb4589208'                # every month change
+   hotfix_2022: 'kb5022291'
+   
+   os_name_w2k2019: 'Microsoft Windows Server 2019 Datacenter'
+   os_name_w2k2022: 'Microsoft Windows Server 2022 Datacenter'
+   
+  tasks:
+  
+################################################################################
+################################  Copy KB file  ########################
+
+  - name: Copying file from local Ansible host to remote W2k2019 #Name Task
+    win_copy:  # Modulo
+     src: "{{path_source}}/win2k2019/"
+     dest: "{{path_destin}}"
+    when: ansible_facts['os_name']== "{{os_name_w2k2019}}"
+    
+  - name: Copying file from local Ansible host to remote W2k2022 #Name Task
+    win_copy:  # Modulo
+     src: "{{path_source}}/win2k2022/"
+     dest: "{{path_destin}}"
+    when: ansible_facts['os_name']== "{{os_name_w2k2022}}"    
+
+################################################################################
+################################  Check if KB Exist  ########################
+    
+  - name: Check if KB exist in the "{{path_destin}}"
+    win_stat:
+     path: "{{path_destin}}"
+    register: file_data
+    
+    
+  - name: report file exist
+    debug:
+     msg: "The file exist"
+    when: file_data.stat.exists
+    
+################################################################################
+################################  Install hotfix  ########################
+
+  - name: Install Hostfix "{{os_name_w2k2019}}"
+    win_hotfix:
+     #hotfix_kb: "{{hotfix_2019}}.msu"    # Validate KB
+     source: "{{path_destin}}{{hotfix_2019}}.msu"
+     state: present
+    when: ansible_facts['os_name']== "{{os_name_w2k2019}}" 
+    register: hotfix_install
+        
+################################################################################
+################################  Uninstall hotfix  ########################
+
+  - name: Uninstall Hotfix with KB
+    community.windows.win_hotfix:
+     hotfix_kb: "{{hotfix_2019}}" 
+     state: absent
+    register: hotfix_uninstall 
+
+
+################################################################################
+#######################  Remove Directory Structure  ########################
+
+  - name: Remove Directory Structure
+    ansible.windows.win_file:
+     path: "{{path_destin}}"
+     state: absent
